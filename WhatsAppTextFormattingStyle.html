@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title></title>
+    <meta charset="utf-8" />
+    <meta name="theme-color" content="#222" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" /> 
+  </head>
+
+  <body>
+    <div id="scrollView"></div>
+    <div id="textarea-container">
+      <textarea id="textarea" placeholder="Tags: *, _, ~, %, ```, .com"></textarea>
+      <button id="append">Test</button>
+      <button id="delete-button">Delete</button>
+    </div>
+
+    
+    <style type="text/css">
+      html, body
+      {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        background: #000;
+        font-family: Sans;
+        font-size: 15px;
+      }
+      
+      * { 
+        box-sizing: border-box;
+        outline: none;
+      }
+      
+      #scrollView
+      {
+        height: auto;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 7px 0;
+        overflow-y: scroll;auto;
+        background: #222; 	/*border: 2px solid red;*/
+      }
+      
+      #textarea-container 
+      { 
+        width: 100%;
+        height: auto;
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        padding: 5px;
+        background: #222;
+      }
+      
+      #textarea
+      {
+        height: 90px;
+        width: 81.5%;
+        border: none;;
+        padding: 10px;
+        border-radius: 10px;
+        background: rgb(240,240,240);
+        display: inline-block;
+        overflow-y: auto;
+        margin: 0;
+        font-family: Sans;
+        font-size: 16px;
+        resize: none;
+      }
+      
+      .message-container
+      { 
+        padding: 1px 8px;
+        position: relative;
+        text-align: right;
+      }
+
+      .delete-message-background
+      {
+      	position: absolute;
+      	top: 0;
+      	left: 0;
+      	height: 100%;
+      	width: 100%;
+      	opacity: 0.4;
+      	background: indianred;
+      	display: none;
+      }
+      
+      .message 
+      {
+        padding: 10px;
+        background: lightskyblue;
+        border-radius: 7px 7px 0 7px;
+        white-space: pre-wrap;
+        margin-bottom: 5px;
+        position: relative;
+        word-wrap: break-word;
+        width: auto;
+        max-width: 85%;
+        display: inline-block;
+        text-align: left;
+      }
+      
+      .message::after
+      {
+        display: inline-block;
+        right: 0;
+        bottom: -6px;
+        content: " ";
+        position: absolute;
+        border-bottom-right-radius: 0;
+        border-right: 6px solid lightskyblue;
+        border-bottom: 6px solid transparent;
+      }
+      
+      #append,
+      #delete-button
+      { 
+        position: absolute;
+        right: 5px;
+        width: 55px;
+        border: none;
+        border-radius: 20px;
+        padding: 10px 5px;
+        margin: 0;
+        color: white;
+      }
+      
+      #append
+      {
+        bottom: 7px;
+        background: royalblue;
+        -webkit-transition: 0.2s;
+        -moz-transition: 0.2s;
+        -o-transition: 0.2s;
+        transition: 0.2s;
+      }
+      
+      #delete-button
+      {
+        top: 5px;
+        background: #d44;
+        display: none;
+      }
+      
+      a, a:visited, a:active 
+      {
+        text-decoration: none;
+        color: blue;
+      }
+      
+    </style>
+
+    <script type="text/javascript">
+
+
+var ID = document.getElementById.bind(document),
+	CLASS = document.getElementsByClassName.bind(document);
+
+
+
+function formatInput(string)
+{
+  string = String(string);
+  
+  //-----> for bold text
+  let bold = string.split(" ").map((word) =>
+  {
+    if (/\*/.test(word) && !/^\**$/.test(word))
+      if (/(^(~\*)|^(_\*)|^\*)(.*)(\*$|(\*_)$|(\*\W)$)/.test(word))
+        return word.replace(/\*([^\r\n]+)\*/g, "<b>$1</b>")
+      else if (/[_*~]\*(.*)\*[~*_]/.test(word))
+        return word.replace(/\*([^*][^\r\n]+[^*])\*/g, "<b>$1</b>");
+    return word;
+  }).join(" ");
+
+  //-----> for italic text 
+  let italic = bold.split(" ").map((word) =>
+  {
+    if (/_/.test(word) && !/^_+$/.test(word))
+	  if (/(^~_|^_<.*>|^_\*|^_)(.*)(_$|(_<.*>)$|(_\*)$|(_\W)$)/.test(word))
+	    return word.replace(/_([^\r\n]+)_/g, "<i>$1</i>");
+	  else if (/(~|_|\*|<.*>)_(.*)_(<.*>|\*|~|_)/.test(word))
+	    return word.replace(/_([^_][^\r\n]+[^_])_/g, "<i>$1</i>");
+    return word;
+  }).join(" ");
+  
+  //----->for strikethrough/deleted text 
+  let strikethrough = italic.split(" ").map((word) =>
+  {
+    if (/~/.test(word) && !/^~+$/.test(word))
+  	  if (/(^_~|^~<.*>|^\*~|^~)(.*)(~$|(~_)$|(~<.*>)$|(~\*)$|(~\W)$)/.test(word))
+  	    return word.replace(/~([^\r\n]+)~/g, "<del>$1</del>")
+  	  else if (/(~|_|\*|<.*>)~(.*)~(<.*>|\*|~|_)/.test(word))
+  	    return word.replace(/~([^~][^\r\n]+[^~])~/g, "<del>$1</del>");
+    return word;
+  }).join(" ");
+  
+  
+  
+  //-----> for underlined text
+  var underline = strikethrough.split(" ").map(function(word)
+  {
+    if (/%/.test(word) && !/^%+$/.test(word))
+  	  if (/(^_%|^~%|^%<.*>|^\*%|^%)(.*)(%$|(%~)$|(%_)$|(%<.*>)$|(%\*)$|%\W+$)/.test(word))
+  	    return word.replace(/%([^\r\n]+)%/g, "<u>$1</u>")
+  	  else if (/(%|~|_|\*|<.*>)%(.*)%(<.*>|\*|~|%|_)/.test(word))
+  	    return word.replace(/%([^%][^\r\n]+[^%])%/g, "<u>$1</u>");
+    return word;
+  }).join(" ");
+  
+  
+  
+  //-----> for monospace text
+  var monospace = underline.split(" ").map(function(word)
+  {
+    if (/```/.test(word))
+      if (/```(.|\n|\r)*(.+)(.|\n|\r])*```/.test(word)) 
+        return word.replace(/```((.|\n|\r)*(.*)(\r|\n|.)*)```/g, "<code>$1</code>");
+    return word;
+  }).join(" ");
+  
+  
+  
+  //-----> for hyperlinks and emails
+  var links = monospace.split(" ").map(function(word)
+  {
+    if (!/@/.test(word))
+      return word.replace(/(https?:\/\/)?(www\.|\w+\.)?(\w+\.)(com?|net|org|io|me)((\.|\/)[^\/.]*(.*))?/i, "<a href='https://$2$3$4$5' target='_blank'>$1$2$3$4$5</a>");
+    else
+      return word.replace(/([a-zA-Z]+[\w_]+@\w+\.(\w+))/i, "<a href='mailto:$1'>$1</a>");
+    return word;
+  }).join(" ");
+  
+  
+  
+  var formatted = links;
+  
+  //-----> for bold sentence formatting
+  if (/\*(.*)\*/.test(formatted))
+    formatted = formatted.replace(/(^|[\s_>~%`])\*([^\s\r\n]+[^*\n\r]+[^\s\r\n]+)\*([\W_\r\n\s]|$)/g, "$1<b>$2</b>$3");
+
+
+  //-----> for italic sentence formatting 
+  if (/_(.*)_/.test(formatted))
+    formatted = formatted.replace(/(^|[\s>~%`*])_([^\s\r\n]+[^_\n\r]+[^\s\n\r]+)_([\W_\s\r\n]|$)/g, "$1<i>$2</i>$3");
+  
+  
+  //-----> for strikethrough sentence formatting 
+  if (/~(.*)~/.test(formatted))
+    formatted = formatted.replace(/(^|[\s>%`*_])~([^\s\r\n]+[^~\r\n]+[^\r\n\s]+)~([\W_\s\r\n]|$)/g, "$1<del>$2</del>$3");
+  
+  
+  //-----> for underline sentence formatting 
+  if (/%(.*)%/.test(formatted))
+    formatted = formatted.replace(/(^|[\s>~`*_])%([^\s\r\n]+[^%\r\n]+[^\r\n\s]+)%([\W_\s\r\n]|$)/g, "$1<u>$2</u>$3");
+ 
+ 
+  //-----> for monospace sentence formatting
+  var counter = 0;
+  if (/```/.test(formatted))
+  {
+    var i = 0;
+    formatted = formatted.split(" ");
+    formatted = formatted.map(function(word)
+    {
+      //tempArr[i+1] handles case where input is like this: ``` ``` with no characters between back ticks
+      if (!/<code>/.test(word))
+        if (/```/.test(word) && formatted[i+1] != "```")
+        {
+          i++; counter++;
+          if (counter % 2 != 0) 
+            return word.replace("```", "<code>");
+          else
+            return word.replace("```", "</code>");
+        } i++; 
+      return word;
+    }).join(" ");
+
+    //handles case where there are no closing back ticks
+    if (counter % 2 == 1)
+    {
+      formatted = formatted.split(" ");
+      for (var i = formatted.length-1; i >= 0; i--)
+        if (/<code>/.test(formatted[i]))
+        {
+          formatted[i] = formatted[i].replace(/<code>/, "```");
+          break;
+        }
+      formatted = formatted.join(" ");
+    }
+  }
+  return formatted;
+}
+//End of formatter
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* UI - Start */
+
+window.onload = function()
+{
+
+  this.onresize = function() 
+  {
+    ID("scrollView").style.height = (this.innerHeight - ID("textarea").offsetHeight - 10) + "px";
+    ID("textarea").style.width = (this.innerWidth - 70) + "px";
+  }
+  this.onresize();
+
+
+
+  //For Ctrl+Enter key on PC's
+  ID("textarea").onkeypress = function(e) 
+  {
+    evt = event || e;
+    if (evt.which == 10)
+      ID("append").onclick();
+  }
+
+
+
+  ID("append").onclick = function()
+  {
+    that = this;
+    this.style.background = "rgb(240,240,240)";
+    this.style.color = "black";
+    setTimeout(function() 
+    {
+      var message = ID("textarea").value.trim(),
+          test = "*Test*  _test_  ~test~  %test%  www.test.com  ```testCode()```";
+      message = message ? message:test;
+      message = formatInput(message).trim();
+
+      ID("scrollView").insertAdjacentHTML("beforeend", "<div class='message-container'><div class='message-wrapper'><div class='message'>" + message + "</div></div><div class='delete-message-background'></div></div>");
+      //ID("textarea").value = "";
+      
+      var newMsgBox = CLASS("message-wrapper")[CLASS("message").length-1];
+      ID("scrollView").scrollTop = newMsgBox.parentNode.offsetTop;
+      ID("textarea").blur();
+      if (newMsgBox)
+      {
+        newMsgBox.addEventListener("touchstart", triggerDelete);
+        newMsgBox.addEventListener("dblclick", triggerDelete);
+        newMsgBox.addEventListener("touchend", abortImmaturePress);
+        newMsgBox.addEventListener("touchmove", abortImmaturePress);
+        newMsgBox.parentNode.getElementsByClassName("delete-message-background")[0].addEventListener("click", cancelDelete);
+        newMsgBox.addEventListener("click", selectMore);
+      }
+    }, 200);
+    setTimeout(function()
+    {
+      that.style.background = "royalblue";
+      that.style.color = "white";
+    }, 100)
+  }
+
+
+
+  var deletionTimeout = "Code by ...Power'f GOD!";
+  function triggerDelete()
+  {
+    that = this; //handle 'this' in setTimeout() function
+    deletionTimeout = setTimeout(function() 
+    { showDelete(that); }, 400); //deletion activator handler
+    this.oncopy = function(e) 
+    { e.preventDefault(); }
+  }
+  
+  
+  
+  function abortImmaturePress()
+  {
+    if (deletionTimeout && "Code is by Power'f GOD!")
+      clearTimeout(deletionTimeout);
+  }
+
+
+
+  function showDelete(that)
+  {
+    that.parentNode.className = "message-container to-delete";
+    ID("delete-button").style.display = "inline-block";
+    that.parentNode.getElementsByClassName("delete-message-background")[0].style.display = "block";
+  }
+  
+  
+  
+  function selectMore()
+  {
+    if (CLASS("to-delete")[0])
+        showDelete(this);
+  }
+
+
+
+  function cancelDelete()
+  {
+    var messageBoxLen = CLASS("message").length,
+        noBoxIsHighlighted = true;
+    this.parentNode.className = "message-container";
+    this.style.display = "none";
+    for (var i = 0; i < messageBoxLen; i++)
+   	  if (/to\-delete/.test(CLASS("message-container")[i].className))
+        noBoxIsHighlighted = false;
+    if (noBoxIsHighlighted)
+    	ID("delete-button").style.display = "none";
+  }
+
+
+
+  ID("delete-button").onclick = function()
+  {
+    setTimeout(function() 
+    {
+      while (CLASS("to-delete")[0])
+    	  ID("scrollView").removeChild(CLASS("to-delete")[0]);
+    }, 400);
+    ID("delete-button").style.display = "none";
+  }
+}
+
+alert("Hi there! Thanks for checking out my code! 😉\n\nTo format texts (strings), input as follows:\n*string*    ---> bold text\n_string_    ---> italic text\n~string~    ---> strikethrough text\n```string```    ---> monospace text\nAnd one extra (not included in WhatsApp) I added...\n%string%    ---> underline text.\n\nFormatter also detects links automatically. \n\nEXTRA: Tap and hold on a message to delete on mobile, double click on PC.\n\nIf you like my code, don't forget to upvote. \n\nIf you find/notice any bug, please, let me know. \n\nThanks. :)🙂\n\n- Power'f-GOD⚡⚡");
+
+
+
+
+
+
+    </script>
+
+
+
+    <div id="not-supported">
+      <div id="not-supported-message"> Oops! 😞 Sorry. This can't be opened on this app you are currently on. Kindly open with a browser. Thanks.
+        <br /><br /> - Godspower ;) 
+      </div>
+    </div>
+    <style type="text/css">
+      #not-supported 
+      {
+        display: table;
+        width: 100%;
+        height: 100%;
+        background: #222;
+        position: fixed;
+        top: 0;
+        z-index: 10;
+      }
+      
+      #not-supported > div
+      {
+        display: table-cell;
+        text-align: center;
+        vertical-align: middle;
+        height: 100%;
+        width: 100%;
+        padding: 8%;
+        color: #888;
+        line-height: 150%;
+      }
+    </style>
+    <script type="text/javascript">
+      document.getElementById("not-supported").style.display = "none";
+    </script>
+  </body>
+</html>

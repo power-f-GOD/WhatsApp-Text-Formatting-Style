@@ -230,7 +230,7 @@ function formatInput(string)
   var links = monospace.split(" ").map(function(word)
   {
     if (!/@/.test(word))
-      return word.replace(/(https?:\/\/)?(www\.|\w+\.)?(\w+\.)(com?|net|org|io|me)((\.|\/)[^\/.]*(.*))?/i, "<a href='https://$2$3$4$5' target='_blank'>$1$2$3$4$5</a>");
+      return word.replace(/(https?:\/\/)?(www\.|\w+\.)?(\w+\.)(com?|net|org|io|me)((\.|\/)[^\/.]*(.*))?/i, "<a href='$1$2$3$4$5' target='_blank'>$1$2$3$4$5</a>");
     else
       return word.replace(/([a-zA-Z]+[\w_]+@\w+\.(\w+))/i, "<a href='mailto:$1'>$1</a>");
     return word;
